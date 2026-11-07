@@ -1,0 +1,85 @@
+/**
+ * YouTube Playlist with verified 100% embeddable Lyric Videos
+ */
+export const songs = [
+  {
+    id: 10,
+    title: "Tattooed Heart",
+    artist: "Ariana",
+    url: "https://youtu.be/NaZXwYjal8E",
+    youtubeId: "NaZXwYjal8E",
+    duration: "",
+  },
+  {
+    id: 9,
+    title: "Could be something",
+    artist: "Ben and Ben",
+    url: "https://youtu.be/GXQ9wiM1F6g",
+    youtubeId: "GXQ9wiM1F6g",
+    duration: "",
+  },
+  {
+    id: 8,
+    title: "Love is",
+    artist: "Ridleys",
+    url: "https://youtu.be/-vTpcwZ6uWw",
+    youtubeId: "-vTpcwZ6uWw",
+    duration: "",
+  },
+  {
+    id: 7,
+    title: "Oksihina",
+    artist: "Dionela",
+    url: "https://youtu.be/hgZI07NJY3c",
+    youtubeId: "hgZI07NJY3c",
+    duration: "",
+  },
+  {
+    id: 1,
+    title: "Pasilyo",
+    artist: "SunKissed Lola",
+    url: "https://www.youtube.com/watch?v=XToA-1dZYWA",
+    youtubeId: "XToA-1dZYWA",
+    duration: "",
+  },
+  {
+    id: 2,
+    title: "Until I Found You",
+    artist: "Stephen Sanchez",
+    url: "https://www.youtube.com/watch?v=GxldQ9eX2wo",
+    youtubeId: "GxldQ9eX2wo",
+    duration: "",
+  },
+  {
+    id: 3,
+    title: "Araw-Araw",
+    artist: "Ben&Ben",
+    url: "https://www.youtube.com/watch?v=V4qjAyb4lNI",
+    youtubeId: "V4qjAyb4lNI",
+    duration: "",
+  },
+  {
+    id: 4,
+    title: "Pano",
+    artist: "Zack Tabudlo",
+    url: "https://www.youtube.com/watch?v=OLxbbX2hKy8",
+    youtubeId: "OLxbbX2hKy8",
+    duration: "",
+  },
+  {
+    id: 5,
+    title: "Palagi",
+    artist: "TJ Monterde",
+    url: "https://www.youtube.com/watch?v=-pz8RfOWS18",
+    youtubeId: "-pz8RfOWS18",
+    duration: "",
+  },
+  {
+    id: 6,
+    title: "Dilaw",
+    artist: "Maki",
+    url: "https://www.youtube.com/watch?v=rTgE55kRF0g",
+    youtubeId: "rTgE55kRF0g",
+    duration: "",
+  }
+];

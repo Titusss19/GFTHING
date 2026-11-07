@@ -1,0 +1,606 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Camera, RefreshCw, X, Sparkles } from 'lucide-react';
+import emailjs from '@emailjs/browser';
+import { useCamera } from '../hooks/useCamera';
+import { photoFilters, photoFrames } from '../data/filters';
+import FilterBar from './FilterBar';
+import Polaroid from './Polaroid';
+import { CONFIG } from '../config';
+
+export default function CameraBooth({
+  isOpen,
+  onClose,
+  herName = CONFIG.herName,
+}) {
+  const [shotMode, setShotMode] = useState(4); // 1 | 3 | 4
+  const [capturedPhotos, setCapturedPhotos] = useState([]);
+  const [compositeStripUrl, setCompositeStripUrl] = useState(null);
+
+  const [selectedFilter, setSelectedFilter] = useState(photoFilters[0]);
+  const [selectedFrame, setSelectedFrame] = useState(photoFrames[0]);
+  const [countdown, setCountdown] = useState(null);
+  const [currentShotIndex, setCurrentShotIndex] = useState(0);
+  const [isFlashing, setIsFlashing] = useState(false);
+  const [isCapturingSeries, setIsCapturingSeries] = useState(false);
+
+  const [sendStatus, setSendStatus] = useState('idle');
+  const [sendErrorMessage, setSendErrorMessage] = useState('');
+
+  const canvasRef = useRef(null);
+  const stripCanvasRef = useRef(null);
+
+  const {
+    videoRef,
+    isReady,
+    cameraError,
+    isFrontCamera,
+    toggleFacingMode,
+    restartStream,
+  } = useCamera(isOpen && capturedPhotos.length === 0);
+
+  // Reset when closed
+  useEffect(() => {
+    if (!isOpen) {
+      setCapturedPhotos([]);
+      setCompositeStripUrl(null);
+      setCountdown(null);
+      setIsFlashing(false);
+      setIsCapturingSeries(false);
+      setSendStatus('idle');
+      setSendErrorMessage('');
+    }
+  }, [isOpen]);
+
+  // Take a single snapshot from video onto canvas
+  const grabSingleFrame = () => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return null;
+
+    setIsFlashing(true);
+    setTimeout(() => setIsFlashing(false), 300);
+
+    // Play subtle mechanical camera shutter sound using Web Audio API
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        const actx = new AudioCtx();
+        const osc = actx.createOscillator();
+        const gain = actx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(140, actx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(30, actx.currentTime + 0.08);
+        gain.gain.setValueAtTime(0.25, actx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, actx.currentTime + 0.08);
+        osc.connect(gain);
+        gain.connect(actx.destination);
+        osc.start();
+        osc.stop(actx.currentTime + 0.09);
+      }
+    } catch (e) {}
+
+    const width = video.videoWidth || 640;
+    const height = video.videoHeight || 480;
+
+    canvas.width = width;
+    canvas.height = height;
+
+    const ctx = canvas.getContext('2d');
+    ctx.save();
+
+    // Mirror image if front camera is active
+    if (isFrontCamera) {
+      ctx.translate(width, 0);
+      ctx.scale(-1, 1);
+    }
+
+    // Apply live filter
+    if (selectedFilter.canvasFilter && selectedFilter.canvasFilter !== 'none') {
+      ctx.filter = selectedFilter.canvasFilter;
+    }
+
+    ctx.drawImage(video, 0, 0, width, height);
+    ctx.restore();
+
+    // Baked overlay
+    if (selectedFrame.id === 'sunflowers') {
+      drawSunflowerBorder(ctx, width, height);
+    } else if (selectedFrame.id === 'hearts') {
+      drawHeartsOverlay(ctx, width, height);
+    } else if (selectedFrame.id === 'sparkles') {
+      drawSparklesOverlay(ctx, width, height);
+    }
+
+    return canvas.toDataURL('image/jpeg', 0.92);
+  };
+
+  // Automated Multi-Shot Photobooth Sequence
+  const startPhotoboothSequence = async () => {
+    if (!isReady || isCapturingSeries) return;
+    setIsCapturingSeries(true);
+    setCapturedPhotos([]);
+
+    const total = shotMode;
+    const taken = [];
+
+    for (let i = 0; i < total; i++) {
+      setCurrentShotIndex(i + 1);
+
+      // 3-second countdown
+      for (let c = 3; c > 0; c--) {
+        setCountdown(c);
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+
+      setCountdown(null);
+      const photoUrl = grabSingleFrame();
+      if (photoUrl) {
+        taken.push(photoUrl);
+      }
+
+      // If more shots remain, give 1.5s to change pose
+      if (i < total - 1) {
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+
+    setCapturedPhotos(taken);
+    setIsCapturingSeries(false);
+
+    // Generate composite photobooth strip
+    generateCompositeStrip(taken, total);
+  };
+
+  // Generate full photobooth strip (Korean 4-cut / 3-cut / 1-cut style)
+  const generateCompositeStrip = async (photosList, mode) => {
+    if (!photosList || photosList.length === 0) return;
+    const canvas = stripCanvasRef.current;
+    if (!canvas) return;
+
+    const stripWidth = 600;
+    const pad = 28;
+    const photoW = stripWidth - pad * 2;
+    const photoH = Math.round(photoW * 0.75); // 4:3 aspect
+    const headerH = 70;
+    const footerH = 90;
+    const gap = 18;
+
+    const totalH = headerH + photosList.length * photoH + (photosList.length - 1) * gap + footerH;
+
+    canvas.width = stripWidth;
+    canvas.height = totalH;
+
+    const ctx = canvas.getContext('2d');
+
+    // Strip background: Pastel pink / cream
+    ctx.fillStyle = '#FFF5F8';
+    ctx.fillRect(0, 0, stripWidth, totalH);
+
+    // Soft border
+    ctx.strokeStyle = '#FFB6C1';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(3, 3, stripWidth - 6, totalH - 6);
+
+    // Header text
+    ctx.fillStyle = '#C2185B';
+    ctx.font = 'bold 24px "Dancing Script", cursive, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`PHOTOBOOTH • ${mode} CUTS 🌸`, stripWidth / 2, 45);
+
+    // Load all images deterministically using Promise.all
+    try {
+      const loadPromises = photosList.map(
+        (src) =>
+          new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = () => resolve(null);
+            img.src = src;
+          })
+      );
+      const loadedImgs = await Promise.all(loadPromises);
+
+      loadedImgs.forEach((img, idx) => {
+        if (!img) return;
+        const yPos = headerH + idx * (photoH + gap);
+
+        // White photo border
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(pad - 4, yPos - 4, photoW + 8, photoH + 8);
+        ctx.drawImage(img, pad, yPos, photoW, photoH);
+      });
+
+      // Footer
+      const footerY = headerH + photosList.length * photoH + (photosList.length - 1) * gap + 40;
+      ctx.fillStyle = '#7B435B';
+      ctx.font = 'bold 26px "Dancing Script", cursive, sans-serif';
+      ctx.fillText(`For ${herName} 💖`, stripWidth / 2, footerY);
+
+      ctx.fillStyle = '#AD1457';
+      ctx.font = 'bold 16px "Nunito", sans-serif';
+      ctx.fillText(`Special Memory • From JM ✨`, stripWidth / 2, footerY + 28);
+
+      const fullStrip = canvas.toDataURL('image/jpeg', 0.92);
+      setCompositeStripUrl(fullStrip);
+    } catch (err) {
+      console.warn("Error drawing strip:", err);
+    }
+  };
+
+  // Canvas drawing helpers
+  const drawSunflowerBorder = (ctx, w, h) => {
+    ctx.save();
+    ctx.strokeStyle = '#FF8DA1';
+    ctx.lineWidth = Math.max(8, w * 0.02);
+    ctx.strokeRect(10, 10, w - 20, h - 20);
+    ctx.font = `${Math.floor(w * 0.05)}px sans-serif`;
+    ctx.fillText("🌸", 20, 45);
+    ctx.fillText("🌸", w - 55, 45);
+    ctx.fillText("🌸", 20, h - 25);
+    ctx.fillText("🌸", w - 55, h - 25);
+    ctx.restore();
+  };
+
+  const drawHeartsOverlay = (ctx, w, h) => {
+    ctx.save();
+    ctx.font = `${Math.floor(w * 0.045)}px sans-serif`;
+    ctx.fillText("💖", w * 0.1, h * 0.15);
+    ctx.fillText("💕", w * 0.85, h * 0.2);
+    ctx.fillText("💗", w * 0.15, h * 0.85);
+    ctx.fillText("✨", w * 0.8, h * 0.82);
+    ctx.restore();
+  };
+
+  const drawSparklesOverlay = (ctx, w, h) => {
+    ctx.save();
+    ctx.font = `${Math.floor(w * 0.045)}px sans-serif`;
+    ctx.fillText("✨", w * 0.08, h * 0.2);
+    ctx.fillText("⭐", w * 0.88, h * 0.15);
+    ctx.fillText("🌟", w * 0.82, h * 0.85);
+    ctx.fillText("✨", w * 0.12, h * 0.8);
+    ctx.restore();
+  };
+
+  // Download high-resolution photobooth strip
+  const handleDownload = () => {
+    const target = compositeStripUrl || capturedPhotos[0];
+    if (!target) return;
+    const a = document.createElement('a');
+    a.href = target;
+    a.download = `photobooth-strip-${Date.now()}.jpg`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  // Send photo strip using EmailJS
+  const handleSendEmail = async () => {
+    const target = compositeStripUrl || capturedPhotos[0];
+    if (!target) return;
+
+    setSendStatus('sending');
+    setSendErrorMessage('');
+
+    const { serviceId, templateId, publicKey } = CONFIG.emailjs;
+
+    // Check if credentials are empty or mistakenly filled with a Gmail address
+    if (!serviceId || !templateId || !publicKey) {
+      setSendStatus('error');
+      setSendErrorMessage("Kailangan ilagay ang EmailJS keys sa .env (tingnan ang gabay sa baba) 💌");
+      return;
+    }
+
+    if (serviceId.includes('@') || publicKey.includes('@')) {
+      setSendStatus('error');
+      setSendErrorMessage("Mali ang nailagay sa .env: Hindi po Gmail address ang ilalagay sa Service ID at Public Key, kundi ang keys mula sa emailjs.com 💌");
+      return;
+    }
+
+    try {
+      // Compress to fit within EmailJS free tier limit (< 50KB payload)
+      const compressedDataUrl = await compressImage(target, 450, 0.55);
+
+      const templateParams = {
+        to_name: CONFIG.senderName || 'JM',
+        from_name: herName || 'Someone special',
+        message: `New photobooth strip from ${herName || 'her'}! 💖`,
+        photo_url: compressedDataUrl,
+        date: new Date().toLocaleString(),
+      };
+
+      const response = await emailjs.send(serviceId, templateId, templateParams, publicKey);
+      console.log("EmailJS Success:", response);
+      setSendStatus('success');
+    } catch (err) {
+      console.error("EmailJS sending error:", err);
+      const errText = err?.text || err?.message || "Could not send email.";
+      setSendStatus('error');
+      setSendErrorMessage(`Email error: ${errText}. Pwede mo rin i-click ang "Save Strip" para ma-download!`);
+    }
+  };
+
+  // Safe image compressor targeting < 45KB for EmailJS
+  const compressImage = (base64Str, maxWidth = 450, quality = 0.55) => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = base64Str;
+      img.onload = () => {
+        const elem = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        elem.width = width;
+        elem.height = height;
+        const ctx = elem.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        let currentQuality = quality;
+        let result = elem.toDataURL('image/jpeg', currentQuality);
+
+        // If payload is still > 48KB, scale down quality
+        if (result.length > 48000) {
+          result = elem.toDataURL('image/jpeg', 0.38);
+        }
+
+        resolve(result);
+      };
+      img.onerror = () => resolve(base64Str);
+    });
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-warmBrown-deep/65 backdrop-blur-sm select-none">
+        {/* Backdrop click to close */}
+        <motion.div
+          className="absolute inset-0"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+        />
+
+        {/* Modal Window */}
+        <motion.div
+          className="relative z-10 w-full max-w-md bg-cream-50 rounded-3xl border-2 border-rose-300 shadow-polaroid-lg p-4 sm:p-5 flex flex-col items-center max-h-[92vh] overflow-y-auto"
+          initial={{ opacity: 0, scale: 0.85, y: 30 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          transition={{ type: 'spring', damping: 20, stiffness: 140 }}
+        >
+          {/* Washi tape topper */}
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-32 h-6 washi-tape-blush rounded-sm -rotate-1 shadow-sm" />
+
+          {/* Close button */}
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-3.5 right-3.5 p-2 rounded-full bg-pink-100 hover:bg-pink-200 text-warmBrown transition-colors active:scale-95"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+
+          {/* Header */}
+          <div className="text-center mt-1 mb-2">
+            <span className="text-[11px] font-bold text-rose-500 uppercase tracking-widest">
+              Instant Photobooth
+            </span>
+            <h3 className="font-script text-2xl sm:text-3xl font-bold text-warmBrown">
+              Snap a Memory 📸
+            </h3>
+          </div>
+
+          {/* Photobooth Strip or Camera Preview */}
+          {capturedPhotos.length > 0 ? (
+            <Polaroid
+              imageUrl={compositeStripUrl || capturedPhotos[0]}
+              photos={capturedPhotos}
+              shotMode={shotMode}
+              herName={herName}
+              onRetake={() => {
+                setCapturedPhotos([]);
+                setCompositeStripUrl(null);
+              }}
+              onDownload={handleDownload}
+              onSend={handleSendEmail}
+              sendStatus={sendStatus}
+              sendErrorMessage={sendErrorMessage}
+            />
+          ) : (
+            <div className="w-full flex flex-col items-center">
+              {/* Photobooth Cut / Shot Count Selector */}
+              <div className="w-full mb-3 flex flex-col items-center">
+                <span className="text-[11px] font-bold text-warmBrown/70 uppercase tracking-wider mb-1.5">
+                  Choose Layout ✨
+                </span>
+                <div className="flex items-center gap-2 bg-pink-100/70 p-1 rounded-2xl border border-rose-200">
+                  {[
+                    { count: 1, label: '1 Shot' },
+                    { count: 3, label: '3-Cut Strip' },
+                    { count: 4, label: '4-Cut Korean' },
+                  ].map((item) => (
+                    <button
+                      key={item.count}
+                      type="button"
+                      onClick={() => setShotMode(item.count)}
+                      disabled={isCapturingSeries}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                        shotMode === item.count
+                          ? 'bg-rose-500 text-white shadow-sm scale-105'
+                          : 'text-warmBrown/80 hover:bg-pink-200/50'
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Camera Preview Screen */}
+              <div className="relative w-full aspect-[4/3] rounded-2xl bg-warmBrown-deep/90 border-2 border-rose-300 overflow-hidden shadow-inner flex items-center justify-center">
+                {/* Flash effect overlay */}
+                {isFlashing && (
+                  <motion.div
+                    className="absolute inset-0 bg-white z-40 pointer-events-none"
+                    initial={{ opacity: 1 }}
+                    animate={{ opacity: 0 }}
+                    transition={{ duration: 0.35 }}
+                  />
+                )}
+
+                {/* Countdown overlay */}
+                {countdown !== null && (
+                  <motion.div
+                    key={countdown}
+                    className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-rose-950/40 backdrop-blur-xs pointer-events-none"
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1.2, opacity: 1 }}
+                    exit={{ scale: 1.8, opacity: 0 }}
+                    transition={{ duration: 0.8 }}
+                  >
+                    <span className="text-white text-xs font-bold uppercase tracking-widest mb-1">
+                      Shot {currentShotIndex} of {shotMode}
+                    </span>
+                    <span className="font-script text-7xl font-bold text-pink-300 drop-shadow-lg">
+                      {countdown}
+                    </span>
+                  </motion.div>
+                )}
+
+                {/* Series Progress Indicator */}
+                {isCapturingSeries && countdown === null && (
+                  <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 bg-rose-600/90 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md animate-pulse">
+                    Get ready for Shot {currentShotIndex} of {shotMode}! ✨
+                  </div>
+                )}
+
+                {/* Live Video Element */}
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{
+                    filter: selectedFilter.cssFilter,
+                    transform: isFrontCamera ? 'scaleX(-1)' : 'none',
+                  }}
+                  className="w-full h-full object-cover"
+                />
+
+                {/* Live Decorative Frame Overlays */}
+                {selectedFrame.id === 'sunflowers' && (
+                  <div className="absolute inset-0 pointer-events-none border-4 border-rose-400 rounded-2xl p-2 flex flex-col justify-between">
+                    <div className="flex justify-between text-2xl">
+                      <span>🌸</span>
+                      <span>🌸</span>
+                    </div>
+                    <div className="flex justify-between text-2xl">
+                      <span>🌸</span>
+                      <span>🌸</span>
+                    </div>
+                  </div>
+                )}
+
+                {selectedFrame.id === 'hearts' && (
+                  <div className="absolute inset-0 pointer-events-none p-4 flex flex-col justify-between text-2xl">
+                    <div className="flex justify-between">
+                      <span className="animate-bounce">💖</span>
+                      <span className="animate-pulse">💕</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="animate-pulse">💗</span>
+                      <span className="animate-bounce">✨</span>
+                    </div>
+                  </div>
+                )}
+
+                {selectedFrame.id === 'sparkles' && (
+                  <div className="absolute inset-0 pointer-events-none p-3 flex flex-col justify-between text-2xl">
+                    <div className="flex justify-between">
+                      <span className="animate-spin" style={{ animationDuration: '6s' }}>✨</span>
+                      <span>⭐</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>🌟</span>
+                      <span className="animate-spin" style={{ animationDuration: '5s' }}>✨</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Camera Permission error */}
+                {cameraError && (
+                  <div className="absolute inset-0 p-5 bg-cream-50 flex flex-col items-center justify-center text-center z-20">
+                    <span className="text-3xl mb-2">📷</span>
+                    <p className="text-xs sm:text-sm text-warmBrown font-semibold mb-3">
+                      {cameraError}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={restartStream}
+                      className="px-4 py-2 rounded-full bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold shadow-sm"
+                    >
+                      Try Again
+                    </button>
+                  </div>
+                )}
+
+                {/* Flip Camera Button */}
+                <button
+                  type="button"
+                  onClick={toggleFacingMode}
+                  className="absolute bottom-3 right-3 p-2.5 rounded-full bg-white/85 hover:bg-white text-rose-700 shadow-md backdrop-blur-sm z-20 active:scale-95 transition-all"
+                  aria-label="Flip camera"
+                  title="Flip camera"
+                >
+                  <RefreshCw size={18} />
+                </button>
+              </div>
+
+              {/* Filters and Frames Bar */}
+              <FilterBar
+                selectedFilter={selectedFilter}
+                onSelectFilter={setSelectedFilter}
+                selectedFrame={selectedFrame}
+                onSelectFrame={setSelectedFrame}
+              />
+
+              {/* Capture Button */}
+              <div className="mt-2 flex items-center justify-center">
+                <motion.button
+                  type="button"
+                  onClick={startPhotoboothSequence}
+                  disabled={!isReady || isCapturingSeries}
+                  whileTap={{ scale: 0.92 }}
+                  className="group relative flex items-center gap-2.5 px-7 py-3 rounded-full bg-gradient-to-r from-rose-500 via-pink-500 to-rose-500 hover:from-rose-600 hover:to-pink-600 text-white font-bold text-sm sm:text-base shadow-warm-glow transition-all disabled:opacity-60"
+                >
+                  <Camera size={20} className="group-hover:rotate-12 transition-transform" />
+                  <span>
+                    {isCapturingSeries
+                      ? `Taking Shot ${currentShotIndex}/${shotMode}...`
+                      : `Start Photobooth (${shotMode} ${shotMode > 1 ? 'Shots' : 'Shot'})`}
+                  </span>
+                  <Sparkles size={16} />
+                </motion.button>
+              </div>
+            </div>
+          )}
+
+          {/* Hidden Canvas elements for baking snapshot & full strip */}
+          <canvas ref={canvasRef} className="hidden" />
+          <canvas ref={stripCanvasRef} className="hidden" />
+        </motion.div>
+      </div>
+    </AnimatePresence>
+  );
+}

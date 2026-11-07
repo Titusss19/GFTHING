@@ -5,6 +5,7 @@ import { useCamera } from '../hooks/useCamera';
 import { photoFilters, photoFrames } from '../data/filters';
 import FilterBar from './FilterBar';
 import Polaroid from './Polaroid';
+import { dataURLtoBlob } from './SaveModal';
 import { CONFIG } from '../config';
 
 export default function CameraBooth({
@@ -48,7 +49,33 @@ export default function CameraBooth({
     }
   }, [isOpen]);
 
-  // Take a single snapshot from video onto canvas
+  // Anti-stretch: Draw image or video with perfect aspect-ratio center crop (object-cover)
+  const drawCoverImage = (ctx, srcImg, dx, dy, dw, dh) => {
+    const iw = srcImg.videoWidth || srcImg.naturalWidth || srcImg.width;
+    const ih = srcImg.videoHeight || srcImg.naturalHeight || srcImg.height;
+    if (!iw || !ih) return;
+
+    const targetRatio = dw / dh;
+    const sourceRatio = iw / ih;
+    let sx = 0;
+    let sy = 0;
+    let sw = iw;
+    let sh = ih;
+
+    if (sourceRatio > targetRatio) {
+      // Source is wider than target -> crop sides
+      sw = Math.round(ih * targetRatio);
+      sx = Math.round((iw - sw) / 2);
+    } else {
+      // Source is taller than target (e.g. portrait phone camera) -> crop top/bottom
+      sh = Math.round(iw / targetRatio);
+      sy = Math.round((ih - sh) / 2);
+    }
+
+    ctx.drawImage(srcImg, sx, sy, sw, sh, dx, dy, dw, dh);
+  };
+
+  // Take a single snapshot from video onto canvas (Exact 4:3 crop matching preview)
   const grabSingleFrame = () => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
@@ -76,18 +103,19 @@ export default function CameraBooth({
       }
     } catch (e) { }
 
-    const width = video.videoWidth || 640;
-    const height = video.videoHeight || 480;
+    // 4:3 high-definition resolution matching the viewfinder exactly
+    const targetW = 960;
+    const targetH = 720;
 
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = targetW;
+    canvas.height = targetH;
 
     const ctx = canvas.getContext('2d');
     ctx.save();
 
     // Mirror image if front camera is active
     if (isFrontCamera) {
-      ctx.translate(width, 0);
+      ctx.translate(targetW, 0);
       ctx.scale(-1, 1);
     }
 
@@ -96,19 +124,20 @@ export default function CameraBooth({
       ctx.filter = selectedFilter.canvasFilter;
     }
 
-    ctx.drawImage(video, 0, 0, width, height);
+    // Draw video using exact 4:3 center crop (NO STRETCHING!)
+    drawCoverImage(ctx, video, 0, 0, targetW, targetH);
     ctx.restore();
 
     // Baked overlay
     if (selectedFrame.id === 'sunflowers') {
-      drawSunflowerBorder(ctx, width, height);
+      drawSunflowerBorder(ctx, targetW, targetH);
     } else if (selectedFrame.id === 'hearts') {
-      drawHeartsOverlay(ctx, width, height);
+      drawHeartsOverlay(ctx, targetW, targetH);
     } else if (selectedFrame.id === 'sparkles') {
-      drawSparklesOverlay(ctx, width, height);
+      drawSparklesOverlay(ctx, targetW, targetH);
     }
 
-    return canvas.toDataURL('image/jpeg', 0.92);
+    return canvas.toDataURL('image/jpeg', 0.95);
   };
 
   // Automated Multi-Shot Photobooth Sequence
@@ -154,13 +183,13 @@ export default function CameraBooth({
     const canvas = stripCanvasRef.current;
     if (!canvas) return;
 
-    const stripWidth = 600;
-    const pad = 28;
-    const photoW = stripWidth - pad * 2;
-    const photoH = Math.round(photoW * 0.75); // 4:3 aspect
-    const headerH = 70;
-    const footerH = 90;
-    const gap = 18;
+    const stripWidth = 640;
+    const pad = 32;
+    const photoW = stripWidth - pad * 2; // 576px
+    const photoH = Math.round(photoW * 0.75); // 432px (exact 4:3 aspect ratio)
+    const headerH = 75;
+    const footerH = 95;
+    const gap = 20;
 
     const totalH = headerH + photosList.length * photoH + (photosList.length - 1) * gap + footerH;
 
@@ -180,9 +209,9 @@ export default function CameraBooth({
 
     // Header text
     ctx.fillStyle = '#C2185B';
-    ctx.font = 'bold 24px "Dancing Script", cursive, sans-serif';
+    ctx.font = 'bold 26px "Dancing Script", cursive, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(`PHOTOBOOTH • ${mode} CUTS 🌸`, stripWidth / 2, 45);
+    ctx.fillText(`PHOTOBOOTH • ${mode} CUTS 🌸`, stripWidth / 2, 48);
 
     // Load all images deterministically using Promise.all
     try {
@@ -201,23 +230,25 @@ export default function CameraBooth({
         if (!img) return;
         const yPos = headerH + idx * (photoH + gap);
 
-        // White photo border
+        // Crisp white photo border
         ctx.fillStyle = '#FFFFFF';
         ctx.fillRect(pad - 4, yPos - 4, photoW + 8, photoH + 8);
-        ctx.drawImage(img, pad, yPos, photoW, photoH);
+
+        // Draw image with anti-stretch cover crop
+        drawCoverImage(ctx, img, pad, yPos, photoW, photoH);
       });
 
       // Footer
-      const footerY = headerH + photosList.length * photoH + (photosList.length - 1) * gap + 40;
+      const footerY = headerH + photosList.length * photoH + (photosList.length - 1) * gap + 42;
       ctx.fillStyle = '#7B435B';
-      ctx.font = 'bold 26px "Dancing Script", cursive, sans-serif';
+      ctx.font = 'bold 28px "Dancing Script", cursive, sans-serif';
       ctx.fillText(`For ${herName} 💖`, stripWidth / 2, footerY);
 
       ctx.fillStyle = '#AD1457';
       ctx.font = 'bold 16px "Nunito", sans-serif';
-      ctx.fillText(`Special Memory `, stripWidth / 2, footerY + 28);
+      ctx.fillText(`Special Memory `, stripWidth / 2, footerY + 30);
 
-      const fullStrip = canvas.toDataURL('image/jpeg', 0.92);
+      const fullStrip = canvas.toDataURL('image/jpeg', 0.95);
       setCompositeStripUrl(fullStrip);
     } catch (err) {
       console.warn("Error drawing strip:", err);
@@ -258,17 +289,47 @@ export default function CameraBooth({
     ctx.restore();
   };
 
-  // Download high-resolution photobooth strip
-  const handleDownload = () => {
+  // Download or Save high-resolution photobooth strip
+  const handleDownload = async () => {
     const target = compositeStripUrl || capturedPhotos[0];
     if (!target) return;
-    const a = document.createElement('a');
-    a.href = target;
-    a.download = `photobooth-strip-${Date.now()}.jpg`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setHasShared(true);
+
+    const blob = dataURLtoBlob(target);
+    const filename = `photobooth-strip-${Date.now()}.jpg`;
+
+    // 1. Mobile Web Share API (Save Image on iOS / iPad)
+    if (blob && navigator.canShare) {
+      try {
+        const file = new File([blob], filename, { type: 'image/jpeg' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: `Photobooth with JM 💖`,
+            files: [file],
+          });
+          setHasShared(true);
+          return;
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+      }
+    }
+
+    // 2. Direct Blob download (Desktop & Android)
+    if (blob) {
+      try {
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 3000);
+        setHasShared(true);
+      } catch (e) {
+        console.warn("Blob download error:", e);
+      }
+    }
   };
 
   // Mobile Native Share (Messenger, AirDrop, Save to Photos, etc.)
@@ -276,11 +337,12 @@ export default function CameraBooth({
     const target = compositeStripUrl || capturedPhotos[0];
     if (!target) return;
 
-    if (navigator.canShare) {
+    const blob = dataURLtoBlob(target);
+    const filename = `photobooth-strip-${Date.now()}.jpg`;
+
+    if (blob && navigator.canShare) {
       try {
-        const res = await fetch(target);
-        const blob = await res.blob();
-        const file = new File([blob], `photobooth-strip-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        const file = new File([blob], filename, { type: 'image/jpeg' });
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
             title: `Photobooth with JM 💖`,
@@ -302,7 +364,7 @@ export default function CameraBooth({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-warmBrown-deep/65 backdrop-blur-sm select-none">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-warmBrown-deep/65 backdrop-blur-sm">
         {/* Backdrop click to close */}
         <motion.div
           className="absolute inset-0"

@@ -37,6 +37,14 @@
       scroll-behavior: auto !important;
     }
   }
+
+  /* Ensure photos can always be saved / long-pressed on iOS Safari & iPadOS */
+  img, .allow-touch-save {
+    -webkit-touch-callout: default !important;
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
+    pointer-events: auto !important;
+  }
 }
 
 .washi-tape {

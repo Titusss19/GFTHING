@@ -22,9 +22,7 @@ export default function CameraBooth({
   const [currentShotIndex, setCurrentShotIndex] = useState(0);
   const [isFlashing, setIsFlashing] = useState(false);
   const [isCapturingSeries, setIsCapturingSeries] = useState(false);
-
-  const [sendStatus, setSendStatus] = useState('idle');
-  const [sendErrorMessage, setSendErrorMessage] = useState('');
+  const [hasShared, setHasShared] = useState(false);
 
   const canvasRef = useRef(null);
   const stripCanvasRef = useRef(null);
@@ -46,8 +44,7 @@ export default function CameraBooth({
       setCountdown(null);
       setIsFlashing(false);
       setIsCapturingSeries(false);
-      setSendStatus('idle');
-      setSendErrorMessage('');
+      setHasShared(false);
     }
   }, [isOpen]);
 
@@ -77,7 +74,7 @@ export default function CameraBooth({
         osc.start();
         osc.stop(actx.currentTime + 0.09);
       }
-    } catch (e) {}
+    } catch (e) { }
 
     const width = video.videoWidth || 640;
     const height = video.videoHeight || 480;
@@ -218,7 +215,7 @@ export default function CameraBooth({
 
       ctx.fillStyle = '#AD1457';
       ctx.font = 'bold 16px "Nunito", sans-serif';
-      ctx.fillText(`Special Memory • From JM ✨`, stripWidth / 2, footerY + 28);
+      ctx.fillText(`Special Memory `, stripWidth / 2, footerY + 28);
 
       const fullStrip = canvas.toDataURL('image/jpeg', 0.92);
       setCompositeStripUrl(fullStrip);
@@ -271,108 +268,34 @@ export default function CameraBooth({
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    setHasShared(true);
   };
 
-  // Helper to convert base64 dataURL to Blob for direct attachment
-  const dataURLtoBlob = (dataurl) => {
-    const arr = dataurl.split(',');
-    const mime = arr[0].match(/:(.*?);/)[1];
-    const bstr = atob(arr[1]);
-    let n = bstr.length;
-    const u8arr = new Uint8Array(n);
-    while (n--) {
-      u8arr[n] = bstr.charCodeAt(n);
-    }
-    return new Blob([u8arr], { type: mime });
-  };
-
-  // Send photo strip directly to Gmail & JM
-  const handleSendEmail = async () => {
+  // Mobile Native Share (Messenger, AirDrop, Save to Photos, etc.)
+  const handleShare = async () => {
     const target = compositeStripUrl || capturedPhotos[0];
     if (!target) return;
 
-    setSendStatus('sending');
-    setSendErrorMessage('');
-
-    const targetGmail = CONFIG.targetGmail || 'melivojaymark61@gmail.com';
-
-    // 1. Always auto-download the photo strip first so it is never lost!
-    try {
-      const a = document.createElement('a');
-      a.href = target;
-      a.download = `photobooth-strip-${Date.now()}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    } catch (e) {}
-
-    // 2. On mobile devices, try native Share (opens Messenger, Gmail app, Instagram with file attached)
     if (navigator.canShare) {
       try {
-        const blob = dataURLtoBlob(target);
+        const res = await fetch(target);
+        const blob = await res.blob();
         const file = new File([blob], `photobooth-strip-${Date.now()}.jpg`, { type: 'image/jpeg' });
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
             title: `Photobooth with JM 💖`,
-            text: `Hi JM! May photobooth picture tayo 🌸`,
             files: [file],
           });
-          setSendStatus('success');
+          setHasShared(true);
           return;
         }
       } catch (err) {
-        if (err.name === 'AbortError') {
-          setSendStatus('idle');
-          return;
-        }
+        if (err.name === 'AbortError') return;
       }
     }
 
-    // 3. Direct background sending via FormSubmit to melivojaymark61@gmail.com
-    try {
-      const blob = dataURLtoBlob(target);
-      const file = new File([blob], `photobooth-strip-${Date.now()}.jpg`, { type: 'image/jpeg' });
-
-      const formData = new FormData();
-      formData.append('_subject', `📸 Bagong Photobooth Memory mula kay ${herName || 'Her'}! 💖`);
-      formData.append('Sender', herName || 'Someone Special');
-      formData.append('Message', `Hi JM! May bagong photobooth strip mula kay ${herName || 'someone special'}. Tingnan ang naka-attach na litrato! 🌸`);
-      formData.append('Date', new Date().toLocaleString());
-      formData.append('attachment', file);
-      formData.append('_captcha', 'false');
-
-      const response = await fetch(`https://formsubmit.co/ajax/${targetGmail}`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-        },
-        body: formData,
-      });
-
-      const data = await response.json();
-      if (data && (data.success === 'true' || data.success === true)) {
-        setSendStatus('success');
-      } else if (data && data.message && data.message.includes('confirm')) {
-        // FormSubmit requires clicking "Activate" in Gmail once
-        setSendStatus('success');
-        setSendErrorMessage("Pakitingnan ang Gmail/Spam folder mo para i-click ang 'Activate' link mula sa FormSubmit! 💌");
-      } else {
-        setSendStatus('success');
-      }
-    } catch (err) {
-      console.warn("Direct email send error:", err);
-    }
-
-    // 4. Open Gmail compose pre-filled to melivojaymark61@gmail.com as direct backup
-    try {
-      const subject = encodeURIComponent(`Photobooth with JM 💖 (${herName || 'Her'})`);
-      const body = encodeURIComponent(`Hi JM! Naka-save na sa device ang photobooth strip natin 🌸`);
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${targetGmail}&su=${subject}&body=${body}`;
-      window.open(gmailUrl, '_blank');
-      setSendStatus('success');
-    } catch (e) {
-      setSendStatus('success');
-    }
+    // Direct download fallback
+    handleDownload();
   };
 
   if (!isOpen) return null;
@@ -430,11 +353,11 @@ export default function CameraBooth({
               onRetake={() => {
                 setCapturedPhotos([]);
                 setCompositeStripUrl(null);
+                setHasShared(false);
               }}
               onDownload={handleDownload}
-              onSend={handleSendEmail}
-              sendStatus={sendStatus}
-              sendErrorMessage={sendErrorMessage}
+              onShare={handleShare}
+              hasShared={hasShared}
             />
           ) : (
             <div className="w-full flex flex-col items-center">
@@ -454,11 +377,10 @@ export default function CameraBooth({
                       type="button"
                       onClick={() => setShotMode(item.count)}
                       disabled={isCapturingSeries}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                        shotMode === item.count
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${shotMode === item.count
                           ? 'bg-rose-500 text-white shadow-sm scale-105'
                           : 'text-warmBrown/80 hover:bg-pink-200/50'
-                      }`}
+                        }`}
                     >
                       {item.label}
                     </button>

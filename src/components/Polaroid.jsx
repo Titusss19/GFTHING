@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { RotateCcw, Download, Send, Check, Share2, Mail } from 'lucide-react';
+import { RotateCcw, Download, Share2, Check } from 'lucide-react';
 
 /**
  * Polaroid / Photo Strip Component
- * 100% Guaranteed Delivery to JM:
- * - Direct Save to Device
- * - Direct Mobile Share Sheet (Messenger, Instagram, Gmail with image attached)
- * - Direct Gmail Web Compose to melivojaymark61@gmail.com
+ * Clean, reliable actions:
+ * - Save Strip (Direct Download to Device)
+ * - Share Strip (Native Mobile Share)
+ * - Retake
  */
 export default function Polaroid({
   imageUrl,
@@ -16,9 +16,8 @@ export default function Polaroid({
   herName = "You",
   onRetake,
   onDownload,
-  onSend,
-  sendStatus = 'idle',
-  sendErrorMessage = '',
+  onShare,
+  hasShared = false,
 }) {
   const currentDate = new Date().toLocaleDateString('en-US', {
     month: 'short',
@@ -92,66 +91,59 @@ export default function Polaroid({
               For {herName} 🌸
             </span>
             <span className="font-sans text-[10px] text-rose-500 font-bold">
-              Special Memory • From JM 💖
+              Special Memory
             </span>
           </div>
           <span className="text-xl">✨</span>
         </div>
       </motion.div>
 
-      {/* Sending / Status Toast */}
-      {sendStatus === 'success' && (
+      {/* Shared / Saved Toast */}
+      {hasShared && (
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mt-3 flex flex-col items-center gap-1 text-xs font-bold text-rose-800 bg-pink-100 p-2.5 px-4 rounded-2xl border border-rose-300 text-center"
+          className="mt-3 flex items-center gap-1.5 text-xs font-bold text-rose-700 bg-pink-100 px-4 py-2 rounded-2xl border border-rose-300"
         >
-          <div className="flex items-center gap-1.5 text-rose-600">
-            <Check size={16} />
-            <span>Naka-save na sa gallery mo! 💌</span>
-          </div>
-          <span className="text-[10px] font-normal text-warmBrown/80">
-            {sendErrorMessage || "Naibukas na ang Gmail/Share para maipadala kay JM!"}
-          </span>
+          <Check size={16} />
+          <span>Saved na sa photos! 💖</span>
         </motion.div>
       )}
 
-      {/* Action Buttons: Retake, Download, Send to JM */}
+      {/* Action Buttons: Retake, Save Strip, Share */}
       <div className="flex items-center justify-center gap-2 mt-4 w-full">
         {/* Retake */}
         <button
           type="button"
           onClick={onRetake}
-          className="flex-1 py-3 px-2 rounded-2xl bg-cream-100 hover:bg-cream-200 border border-rose-300 text-warmBrown text-xs sm:text-sm font-bold flex items-center justify-center gap-1 transition-all active:scale-95"
+          className="flex-1 py-3 px-2 rounded-2xl bg-cream-100 hover:bg-cream-200 border border-rose-300 text-warmBrown text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95"
         >
-          <RotateCcw size={14} />
+          <RotateCcw size={15} />
           <span>Retake</span>
         </button>
 
-        {/* Download */}
+        {/* Save Strip (Direct Download) */}
         <button
           type="button"
           onClick={onDownload}
-          className="flex-1 py-3 px-2 rounded-2xl bg-pink-100 hover:bg-pink-200 border border-rose-300 text-rose-800 text-xs sm:text-sm font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-sm"
+          className="flex-1 py-3 px-2 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-md"
         >
-          <Download size={14} />
-          <span>Save Strip</span>
+          <Download size={15} />
+          <span>Save Strip 📥</span>
         </button>
 
-        {/* Send to JM */}
-        <button
-          type="button"
-          onClick={onSend}
-          className="flex-1 py-3 px-2 rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 hover:from-rose-600 hover:to-pink-700 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-md"
-        >
-          <Send size={14} />
-          <span>Send to JM 💖</span>
-        </button>
+        {/* Share Strip (Mobile Native Share or Copy) */}
+        {onShare && (
+          <button
+            type="button"
+            onClick={onShare}
+            className="flex-1 py-3 px-2 rounded-2xl bg-pink-100 hover:bg-pink-200 border border-rose-300 text-rose-800 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 transition-all active:scale-95 shadow-sm"
+          >
+            <Share2 size={15} />
+            <span>Share 📲</span>
+          </button>
+        )}
       </div>
-
-      <p className="text-[10px] text-warmBrown/60 mt-2 text-center">
-        (Autosaves to your phone & opens Gmail/Messenger to send to JM)
-      </p>
     </div>
   );
 }

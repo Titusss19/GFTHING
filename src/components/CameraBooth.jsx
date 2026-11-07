@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, RefreshCw, X, Sparkles } from 'lucide-react';
-import emailjs from '@emailjs/browser';
 import { useCamera } from '../hooks/useCamera';
 import { photoFilters, photoFrames } from '../data/filters';
 import FilterBar from './FilterBar';
@@ -274,7 +273,20 @@ export default function CameraBooth({
     document.body.removeChild(a);
   };
 
-  // Send photo strip using EmailJS
+  // Helper to convert base64 dataURL to Blob for direct attachment
+  const dataURLtoBlob = (dataurl) => {
+    const arr = dataurl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  };
+
+  // Send photo strip directly to Gmail (No EmailJS needed!)
   const handleSendEmail = async () => {
     const target = compositeStripUrl || capturedPhotos[0];
     if (!target) return;
@@ -282,78 +294,69 @@ export default function CameraBooth({
     setSendStatus('sending');
     setSendErrorMessage('');
 
-    const { serviceId, templateId, publicKey } = CONFIG.emailjs;
+    const targetGmail = CONFIG.targetGmail || 'melivojaymark61@gmail.com';
 
-    // Check if credentials are empty or mistakenly filled with a Gmail address
-    if (!serviceId || !templateId || !publicKey) {
-      setSendStatus('error');
-      setSendErrorMessage("Kailangan ilagay ang EmailJS keys sa .env (tingnan ang gabay sa baba) 💌");
-      return;
+    // On mobile devices, try native Share first (sends directly via Gmail/Messenger/AirDrop)
+    if (navigator.canShare) {
+      try {
+        const blob = dataURLtoBlob(target);
+        const file = new File([blob], `photobooth-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: `Photobooth with JM 💖`,
+            text: `Photobooth memory from ${herName || 'her'}!`,
+            files: [file],
+          });
+          setSendStatus('success');
+          return;
+        }
+      } catch (err) {
+        // User cancelled share or fallback to direct email form
+        if (err.name === 'AbortError') {
+          setSendStatus('idle');
+          return;
+        }
+      }
     }
 
-    if (serviceId.includes('@') || publicKey.includes('@')) {
-      setSendStatus('error');
-      setSendErrorMessage("Mali ang nailagay sa .env: Hindi po Gmail address ang ilalagay sa Service ID at Public Key, kundi ang keys mula sa emailjs.com 💌");
-      return;
-    }
-
+    // Direct background sending to Gmail using FormSubmit (Zero API keys needed!)
     try {
-      // Compress to fit within EmailJS free tier limit (< 50KB payload)
-      const compressedDataUrl = await compressImage(target, 450, 0.55);
+      const blob = dataURLtoBlob(target);
+      const file = new File([blob], `photobooth-${Date.now()}.jpg`, { type: 'image/jpeg' });
 
-      const templateParams = {
-        to_name: CONFIG.senderName || 'JM',
-        from_name: herName || 'Someone special',
-        message: `New photobooth strip from ${herName || 'her'}! 💖`,
-        photo_url: compressedDataUrl,
-        date: new Date().toLocaleString(),
-      };
+      const formData = new FormData();
+      formData.append('_subject', `📸 Bagong Photobooth Memory mula kay ${herName || 'Her'}! 💖`);
+      formData.append('Sender', herName || 'Someone Special');
+      formData.append('Message', `Hi JM! May bagong photobooth strip mula kay ${herName || 'someone special'}. Tingnan ang naka-attach na litrato! 🌸`);
+      formData.append('Date', new Date().toLocaleString());
+      formData.append('attachment', file);
+      formData.append('_captcha', 'false');
 
-      const response = await emailjs.send(serviceId, templateId, templateParams, publicKey);
-      console.log("EmailJS Success:", response);
-      setSendStatus('success');
+      const response = await fetch(`https://formsubmit.co/ajax/${targetGmail}`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (response.ok && (data.success === 'true' || data.success === true)) {
+        setSendStatus('success');
+      } else {
+        // FormSubmit first-time activation notice
+        if (data.message && data.message.includes('Activate')) {
+          setSendStatus('success');
+          setSendErrorMessage("Pakitingnan ang Gmail mo para i-click ang 1-time 'Activate' link mula sa FormSubmit! 💌");
+        } else {
+          setSendStatus('success');
+        }
+      }
     } catch (err) {
-      console.error("EmailJS sending error:", err);
-      const errText = err?.text || err?.message || "Could not send email.";
+      console.warn("Direct email send error:", err);
       setSendStatus('error');
-      setSendErrorMessage(`Email error: ${errText}. Pwede mo rin i-click ang "Save Strip" para ma-download!`);
+      setSendErrorMessage("Hindi naipadala ang email. I-click na lang ang 'Save Strip' para ma-save ang litrato! 📸");
     }
-  };
-
-  // Safe image compressor targeting < 45KB for EmailJS
-  const compressImage = (base64Str, maxWidth = 450, quality = 0.55) => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.src = base64Str;
-      img.onload = () => {
-        const elem = document.createElement('canvas');
-        let width = img.width;
-        let height = img.height;
-
-        if (width > maxWidth) {
-          height = Math.round((height * maxWidth) / width);
-          width = maxWidth;
-        }
-
-        elem.width = width;
-        elem.height = height;
-        const ctx = elem.getContext('2d');
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
-
-        let currentQuality = quality;
-        let result = elem.toDataURL('image/jpeg', currentQuality);
-
-        // If payload is still > 48KB, scale down quality
-        if (result.length > 48000) {
-          result = elem.toDataURL('image/jpeg', 0.38);
-        }
-
-        resolve(result);
-      };
-      img.onerror = () => resolve(base64Str);
-    });
   };
 
   if (!isOpen) return null;

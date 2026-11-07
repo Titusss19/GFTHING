@@ -45,9 +45,17 @@ export default function Polaroid({
           </span>
         </div>
 
-        {/* Photos Grid / Strip */}
-        {photos && photos.length > 1 ? (
-          <div className={`w-full flex flex-col gap-2`}>
+        {/* Photos Grid / Strip / Baked Composite */}
+        {imageUrl ? (
+          <div className="w-full rounded-xl overflow-hidden border border-rose-200 shadow-sm bg-pink-100/30">
+            <img
+              src={imageUrl}
+              alt="Photobooth Memory"
+              className="w-full h-auto object-contain max-h-[60vh] mx-auto rounded-lg"
+            />
+          </div>
+        ) : photos && photos.length > 1 ? (
+          <div className="w-full flex flex-col gap-2">
             {photos.map((pic, idx) => (
               <div
                 key={idx}
@@ -68,7 +76,7 @@ export default function Polaroid({
           /* Single Photo Mode */
           <div className="w-full aspect-[4/3] bg-pink-100/50 rounded-xl overflow-hidden relative border border-rose-200 shadow-sm">
             <img
-              src={imageUrl || (photos && photos[0])}
+              src={photos && photos[0]}
               alt="Captured memory"
               className="w-full h-full object-cover"
             />

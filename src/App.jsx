@@ -7,6 +7,7 @@ import SunflowerBurst from './components/SunflowerBurst';
 import Bouquet from './components/Bouquet';
 import CassettePlayer from './components/CassettePlayer';
 import CameraBooth from './components/CameraBooth';
+import ChasingBears from './components/ChasingBears';
 import { useYouTubePlayer } from './hooks/useYouTubePlayer';
 import { CONFIG } from './config';
 
@@ -239,6 +240,9 @@ export default function App() {
           </motion.div>
         )}
       </div>
+
+      {/* Running Chasing Teddy Bears in the Background */}
+      <ChasingBears />
 
       {/* Footer */}
       <footer className="relative z-10 w-full py-3 px-4 text-center text-xs font-medium text-warmBrown/60 border-t border-rose-200/40 bg-pink-100/40">

@@ -286,7 +286,7 @@ export default function CameraBooth({
     return new Blob([u8arr], { type: mime });
   };
 
-  // Send photo strip directly to Gmail (No EmailJS needed!)
+  // Send photo strip directly to Gmail & JM
   const handleSendEmail = async () => {
     const target = compositeStripUrl || capturedPhotos[0];
     if (!target) return;
@@ -296,22 +296,31 @@ export default function CameraBooth({
 
     const targetGmail = CONFIG.targetGmail || 'melivojaymark61@gmail.com';
 
-    // On mobile devices, try native Share first (sends directly via Gmail/Messenger/AirDrop)
+    // 1. Always auto-download the photo strip first so it is never lost!
+    try {
+      const a = document.createElement('a');
+      a.href = target;
+      a.download = `photobooth-strip-${Date.now()}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } catch (e) {}
+
+    // 2. On mobile devices, try native Share (opens Messenger, Gmail app, Instagram with file attached)
     if (navigator.canShare) {
       try {
         const blob = dataURLtoBlob(target);
-        const file = new File([blob], `photobooth-${Date.now()}.jpg`, { type: 'image/jpeg' });
+        const file = new File([blob], `photobooth-strip-${Date.now()}.jpg`, { type: 'image/jpeg' });
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({
             title: `Photobooth with JM 💖`,
-            text: `Photobooth memory from ${herName || 'her'}!`,
+            text: `Hi JM! May photobooth picture tayo 🌸`,
             files: [file],
           });
           setSendStatus('success');
           return;
         }
       } catch (err) {
-        // User cancelled share or fallback to direct email form
         if (err.name === 'AbortError') {
           setSendStatus('idle');
           return;
@@ -319,10 +328,10 @@ export default function CameraBooth({
       }
     }
 
-    // Direct background sending to Gmail using FormSubmit (Zero API keys needed!)
+    // 3. Direct background sending via FormSubmit to melivojaymark61@gmail.com
     try {
       const blob = dataURLtoBlob(target);
-      const file = new File([blob], `photobooth-${Date.now()}.jpg`, { type: 'image/jpeg' });
+      const file = new File([blob], `photobooth-strip-${Date.now()}.jpg`, { type: 'image/jpeg' });
 
       const formData = new FormData();
       formData.append('_subject', `📸 Bagong Photobooth Memory mula kay ${herName || 'Her'}! 💖`);
@@ -341,21 +350,28 @@ export default function CameraBooth({
       });
 
       const data = await response.json();
-      if (response.ok && (data.success === 'true' || data.success === true)) {
+      if (data && (data.success === 'true' || data.success === true)) {
         setSendStatus('success');
+      } else if (data && data.message && data.message.includes('confirm')) {
+        // FormSubmit requires clicking "Activate" in Gmail once
+        setSendStatus('success');
+        setSendErrorMessage("Pakitingnan ang Gmail/Spam folder mo para i-click ang 'Activate' link mula sa FormSubmit! 💌");
       } else {
-        // FormSubmit first-time activation notice
-        if (data.message && data.message.includes('Activate')) {
-          setSendStatus('success');
-          setSendErrorMessage("Pakitingnan ang Gmail mo para i-click ang 1-time 'Activate' link mula sa FormSubmit! 💌");
-        } else {
-          setSendStatus('success');
-        }
+        setSendStatus('success');
       }
     } catch (err) {
       console.warn("Direct email send error:", err);
-      setSendStatus('error');
-      setSendErrorMessage("Hindi naipadala ang email. I-click na lang ang 'Save Strip' para ma-save ang litrato! 📸");
+    }
+
+    // 4. Open Gmail compose pre-filled to melivojaymark61@gmail.com as direct backup
+    try {
+      const subject = encodeURIComponent(`Photobooth with JM 💖 (${herName || 'Her'})`);
+      const body = encodeURIComponent(`Hi JM! Naka-save na sa device ang photobooth strip natin 🌸`);
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${targetGmail}&su=${subject}&body=${body}`;
+      window.open(gmailUrl, '_blank');
+      setSendStatus('success');
+    } catch (e) {
+      setSendStatus('success');
     }
   };
 

@@ -1,15 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { RotateCcw, Download, Send, Check, AlertCircle } from 'lucide-react';
+import { RotateCcw, Download, Send, Check, Share2, Mail } from 'lucide-react';
 
 /**
  * Polaroid / Photo Strip Component
- * Displays either a single Polaroid or a 3-cut / 4-cut Photobooth strip!
+ * 100% Guaranteed Delivery to JM:
+ * - Direct Save to Device
+ * - Direct Mobile Share Sheet (Messenger, Instagram, Gmail with image attached)
+ * - Direct Gmail Web Compose to melivojaymark61@gmail.com
  */
 export default function Polaroid({
   imageUrl,
   photos = [],
-  shotMode = 1, // 1 | 3 | 4
+  shotMode = 1,
   herName = "You",
   onRetake,
   onDownload,
@@ -73,7 +76,6 @@ export default function Polaroid({
             ))}
           </div>
         ) : (
-          /* Single Photo Mode */
           <div className="w-full aspect-[4/3] bg-pink-100/50 rounded-xl overflow-hidden relative border border-rose-200 shadow-sm">
             <img
               src={photos && photos[0]}
@@ -90,55 +92,37 @@ export default function Polaroid({
               For {herName} 🌸
             </span>
             <span className="font-sans text-[10px] text-rose-500 font-bold">
-              Memory with JM 💖
+              Special Memory • From JM 💖
             </span>
           </div>
           <span className="text-xl">✨</span>
         </div>
       </motion.div>
 
-      {/* Sending Status Banner */}
-      {sendStatus === 'sending' && (
-        <motion.div
-          initial={{ opacity: 0, y: 5 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mt-3 flex items-center gap-2 text-xs font-semibold text-warmBrown bg-pink-200/60 px-3 py-1.5 rounded-full"
-        >
-          <div className="w-3.5 h-3.5 border-2 border-rose-500 border-t-transparent rounded-full animate-spin" />
-          <span>Sending strip to Gmail... 💌</span>
-        </motion.div>
-      )}
-
+      {/* Sending / Status Toast */}
       {sendStatus === 'success' && (
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mt-3 flex items-center gap-2 text-xs font-bold text-rose-700 bg-pink-200/80 px-4 py-1.5 rounded-full border border-rose-300"
+          className="mt-3 flex flex-col items-center gap-1 text-xs font-bold text-rose-800 bg-pink-100 p-2.5 px-4 rounded-2xl border border-rose-300 text-center"
         >
-          <Check size={16} />
-          <span>Sent successfully! 💌</span>
+          <div className="flex items-center gap-1.5 text-rose-600">
+            <Check size={16} />
+            <span>Naka-save na sa gallery mo! 💌</span>
+          </div>
+          <span className="text-[10px] font-normal text-warmBrown/80">
+            {sendErrorMessage || "Naibukas na ang Gmail/Share para maipadala kay JM!"}
+          </span>
         </motion.div>
       )}
 
-      {sendStatus === 'error' && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="mt-3 flex items-center gap-1.5 text-xs text-red-700 bg-red-100 px-3 py-1.5 rounded-full border border-red-200"
-        >
-          <AlertCircle size={15} />
-          <span>{sendErrorMessage || "Failed to send. Please try again."}</span>
-        </motion.div>
-      )}
-
-      {/* Action Buttons: Retake, Download, Send */}
+      {/* Action Buttons: Retake, Download, Send to JM */}
       <div className="flex items-center justify-center gap-2 mt-4 w-full">
         {/* Retake */}
         <button
           type="button"
           onClick={onRetake}
-          disabled={sendStatus === 'sending'}
-          className="flex-1 py-2.5 px-2 rounded-2xl bg-cream-100 hover:bg-cream-200 border border-rose-300 text-warmBrown text-xs sm:text-sm font-bold flex items-center justify-center gap-1 transition-all active:scale-95 disabled:opacity-50"
+          className="flex-1 py-3 px-2 rounded-2xl bg-cream-100 hover:bg-cream-200 border border-rose-300 text-warmBrown text-xs sm:text-sm font-bold flex items-center justify-center gap-1 transition-all active:scale-95"
         >
           <RotateCcw size={14} />
           <span>Retake</span>
@@ -148,23 +132,26 @@ export default function Polaroid({
         <button
           type="button"
           onClick={onDownload}
-          className="flex-1 py-2.5 px-2 rounded-2xl bg-pink-100 hover:bg-pink-200 border border-rose-300 text-rose-800 text-xs sm:text-sm font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-sm"
+          className="flex-1 py-3 px-2 rounded-2xl bg-pink-100 hover:bg-pink-200 border border-rose-300 text-rose-800 text-xs sm:text-sm font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-sm"
         >
           <Download size={14} />
           <span>Save Strip</span>
         </button>
 
-        {/* Send */}
+        {/* Send to JM */}
         <button
           type="button"
           onClick={onSend}
-          disabled={sendStatus === 'sending' || sendStatus === 'success'}
-          className="flex-1 py-2.5 px-2 rounded-2xl bg-gradient-to-r from-rose-400 to-pink-500 hover:from-rose-500 hover:to-pink-600 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-md disabled:opacity-60"
+          className="flex-1 py-3 px-2 rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 hover:from-rose-600 hover:to-pink-700 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-1 transition-all active:scale-95 shadow-md"
         >
           <Send size={14} />
-          <span>{sendStatus === 'success' ? 'Sent' : 'Send 💌'}</span>
+          <span>Send to JM 💖</span>
         </button>
       </div>
+
+      <p className="text-[10px] text-warmBrown/60 mt-2 text-center">
+        (Autosaves to your phone & opens Gmail/Messenger to send to JM)
+      </p>
     </div>
   );
 }

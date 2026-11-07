@@ -2,186 +2,190 @@ import React from 'react';
 import { motion } from 'framer-motion';
 
 /**
- * Chasing Teddy Bears running across the screen in the background!
- * Bear 1 runs in front holding a flower/heart, Bear 2 playfully chases behind!
+ * Big, cute chasing teddy bears running across the screen in the background!
+ * Much larger size (95px-110px), vivid colors, bouncy running paws, hearts, and speed lines!
  */
 export default function ChasingBears() {
   return (
-    <div className="fixed bottom-0 left-0 right-0 h-28 pointer-events-none z-15 overflow-hidden select-none">
+    <div className="fixed bottom-0 left-0 right-0 h-36 sm:h-44 pointer-events-none z-20 overflow-hidden select-none">
       {/* Container running across the screen from left to right */}
       <motion.div
-        className="absolute bottom-2 flex items-end gap-6 pointer-events-auto cursor-pointer"
-        initial={{ x: '-30vw' }}
+        className="absolute bottom-2 flex items-end gap-8 pointer-events-auto cursor-pointer"
+        initial={{ x: '-35vw' }}
         animate={{ x: '115vw' }}
         transition={{
-          duration: 14,
+          duration: 13,
           repeat: Infinity,
           ease: 'linear',
-          repeatDelay: 1.5,
+          repeatDelay: 1,
         }}
-        whileTap={{ scale: 1.2, y: -15 }}
+        whileTap={{ scale: 1.15, y: -20 }}
       >
-        {/* BEAR 1 (Running in front with flower) */}
+        {/* BEAR 1 (Brown Teddy running in front holding flower & heart) */}
         <motion.div
           className="relative flex flex-col items-center"
           animate={{
-            y: [0, -8, 0],
-            rotate: [2, -4, 2],
+            y: [0, -14, 0],
+            rotate: [3, -5, 3],
           }}
           transition={{
-            duration: 0.35,
+            duration: 0.38,
             repeat: Infinity,
             ease: 'easeInOut',
           }}
         >
-          {/* Heart popping up as it runs */}
-          <motion.span
-            className="absolute -top-5 text-sm"
+          {/* Hearts floating above while running */}
+          <motion.div
+            className="absolute -top-7 flex gap-1"
             animate={{
               opacity: [0, 1, 0],
-              y: [-2, -14],
-              scale: [0.6, 1.2, 0.8],
-            }}
-            transition={{
-              duration: 0.8,
-              repeat: Infinity,
-              ease: 'easeOut',
-            }}
-          >
-            💖
-          </motion.span>
-
-          {/* Bear 1 SVG */}
-          <svg viewBox="0 0 80 80" width="58" height="58" className="drop-shadow-md">
-            {/* Ears */}
-            <circle cx="24" cy="22" r="10" fill="#B07050" />
-            <circle cx="24" cy="22" r="5" fill="#FFCCD5" />
-            <circle cx="56" cy="22" r="10" fill="#B07050" />
-            <circle cx="56" cy="22" r="5" fill="#FFCCD5" />
-
-            {/* Head */}
-            <ellipse cx="40" cy="34" rx="22" ry="18" fill="#C88560" />
-
-            {/* Cheeks blush */}
-            <circle cx="28" cy="38" r="4" fill="#FF8FA3" opacity="0.6" />
-            <circle cx="52" cy="38" r="4" fill="#FF8FA3" opacity="0.6" />
-
-            {/* Eyes */}
-            <ellipse cx="32" cy="32" rx="2.5" ry="3.5" fill="#2B1508" />
-            <ellipse cx="48" cy="32" rx="2.5" ry="3.5" fill="#2B1508" />
-            <circle cx="33" cy="31" r="1" fill="#FFFFFF" />
-            <circle cx="49" cy="31" r="1" fill="#FFFFFF" />
-
-            {/* Muzzle */}
-            <ellipse cx="40" cy="40" rx="9" ry="6.5" fill="#FFE0D0" />
-            <ellipse cx="40" cy="37" rx="3" ry="2" fill="#5A2E10" />
-            <path d="M 38 41 Q 40 44 42 41" stroke="#5A2E10" strokeWidth="1.2" fill="none" strokeLinecap="round" />
-
-            {/* Body */}
-            <ellipse cx="40" cy="56" rx="16" ry="14" fill="#C88560" />
-            <ellipse cx="40" cy="56" rx="9" ry="8" fill="#FFE0D0" />
-
-            {/* Arms (holding a little flower) */}
-            <ellipse cx="26" cy="50" rx="5" ry="8" fill="#B07050" transform="rotate(-30 26 50)" />
-            <ellipse cx="54" cy="50" rx="5" ry="8" fill="#B07050" transform="rotate(30 54 50)" />
-
-            {/* Flower held in paws */}
-            <text x="35" y="55" fontSize="13">🌸</text>
-
-            {/* Running Feet */}
-            <ellipse cx="30" cy="69" rx="6" ry="4" fill="#9E5F40" />
-            <ellipse cx="50" cy="68" rx="6" ry="4" fill="#9E5F40" />
-          </svg>
-        </motion.div>
-
-        {/* Playful speed trails between bears */}
-        <div className="flex flex-col gap-1 pb-4 opacity-50">
-          <motion.div
-            className="w-4 h-1 bg-pink-400 rounded-full"
-            animate={{ scaleX: [0.5, 1.2, 0.5] }}
-            transition={{ duration: 0.4, repeat: Infinity }}
-          />
-          <motion.div
-            className="w-6 h-1 bg-rose-400 rounded-full -ml-1"
-            animate={{ scaleX: [1, 0.4, 1] }}
-            transition={{ duration: 0.4, repeat: Infinity, delay: 0.1 }}
-          />
-        </div>
-
-        {/* BEAR 2 (Chasing behind with cute bow) */}
-        <motion.div
-          className="relative flex flex-col items-center"
-          animate={{
-            y: [0, -9, 0],
-            rotate: [-4, 3, -4],
-          }}
-          transition={{
-            duration: 0.32,
-            repeat: Infinity,
-            ease: 'easeInOut',
-            delay: 0.1,
-          }}
-        >
-          {/* Thought bubble "Wait for me! 💕" */}
-          <motion.span
-            className="absolute -top-5 text-sm"
-            animate={{
-              opacity: [0, 1, 0],
-              y: [-1, -12],
-              scale: [0.7, 1.1, 0.7],
+              y: [-2, -20],
+              scale: [0.7, 1.3, 0.9],
             }}
             transition={{
               duration: 0.9,
               repeat: Infinity,
               ease: 'easeOut',
-              delay: 0.3,
             }}
           >
-            ✨
-          </motion.span>
+            <span className="text-xl">💖</span>
+          </motion.div>
 
-          {/* Bear 2 SVG (Cream / Pastel Pink Bear with Bow) */}
-          <svg viewBox="0 0 80 80" width="56" height="56" className="drop-shadow-md">
-            {/* Ears */}
-            <circle cx="24" cy="22" r="10" fill="#E8B0C0" />
-            <circle cx="24" cy="22" r="5" fill="#FFE4EC" />
-            <circle cx="56" cy="22" r="10" fill="#E8B0C0" />
-            <circle cx="56" cy="22" r="5" fill="#FFE4EC" />
+          {/* Large Bear 1 SVG (Approx 95px - 105px) */}
+          <svg viewBox="0 0 100 100" width="95" height="95" className="drop-shadow-lg overflow-visible">
+            {/* Left Ear */}
+            <circle cx="28" cy="24" r="13" fill="#9E5D3B" />
+            <circle cx="28" cy="24" r="7" fill="#FFB6C1" />
 
-            {/* Cute pink bow on left ear */}
-            <path d="M 20 18 Q 16 14 20 12 Q 22 16 20 18" fill="#FF4081" />
-            <path d="M 22 18 Q 26 14 22 12 Q 20 16 22 18" fill="#FF4081" />
-            <circle cx="21" cy="15" r="2" fill="#D81B60" />
+            {/* Right Ear */}
+            <circle cx="72" cy="24" r="13" fill="#9E5D3B" />
+            <circle cx="72" cy="24" r="7" fill="#FFB6C1" />
 
             {/* Head */}
-            <ellipse cx="40" cy="34" rx="22" ry="18" fill="#F7C8D8" />
+            <ellipse cx="50" cy="40" rx="28" ry="23" fill="#BA754C" />
 
-            {/* Cheeks blush */}
-            <circle cx="27" cy="38" r="4" fill="#FF6584" opacity="0.65" />
-            <circle cx="53" cy="38" r="4" fill="#FF6584" opacity="0.65" />
+            {/* Blush cheeks */}
+            <circle cx="34" cy="46" r="6" fill="#FF6584" opacity="0.65" />
+            <circle cx="66" cy="46" r="6" fill="#FF6584" opacity="0.65" />
 
-            {/* Eyes (happy running squint or cute eyes) */}
-            <ellipse cx="32" cy="32" rx="2.5" ry="3.5" fill="#3D1C2E" />
-            <ellipse cx="48" cy="32" rx="2.5" ry="3.5" fill="#3D1C2E" />
-            <circle cx="33" cy="31" r="1" fill="#FFFFFF" />
-            <circle cx="49" cy="31" r="1" fill="#FFFFFF" />
+            {/* Big cute eyes */}
+            <ellipse cx="38" cy="38" rx="3.5" ry="5" fill="#241208" />
+            <ellipse cx="62" cy="38" rx="3.5" ry="5" fill="#241208" />
+            <circle cx="39.5" cy="36" r="1.5" fill="#FFFFFF" />
+            <circle cx="63.5" cy="36" r="1.5" fill="#FFFFFF" />
 
             {/* Muzzle */}
-            <ellipse cx="40" cy="40" rx="9" ry="6.5" fill="#FFF0F5" />
-            <ellipse cx="40" cy="37" rx="3" ry="2" fill="#AD1457" />
-            <path d="M 38 41 Q 40 44 42 41" stroke="#AD1457" strokeWidth="1.2" fill="none" strokeLinecap="round" />
+            <ellipse cx="50" cy="49" rx="12" ry="9" fill="#FFE8DC" />
+            <ellipse cx="50" cy="45" rx="4.5" ry="3" fill="#42200C" />
+            <path d="M 47 50 Q 50 54 53 50" stroke="#42200C" strokeWidth="1.8" fill="none" strokeLinecap="round" />
 
             {/* Body */}
-            <ellipse cx="40" cy="56" rx="16" ry="14" fill="#F7C8D8" />
-            <ellipse cx="40" cy="56" rx="9" ry="8" fill="#FFF0F5" />
+            <ellipse cx="50" cy="70" rx="21" ry="18" fill="#BA754C" />
+            <ellipse cx="50" cy="70" rx="12" ry="11" fill="#FFE8DC" />
 
-            {/* Outstretched arms (running chase) */}
-            <ellipse cx="50" cy="48" rx="7" ry="4" fill="#E8B0C0" transform="rotate(-15 50 48)" />
-            <ellipse cx="28" cy="52" rx="5" ry="8" fill="#E8B0C0" transform="rotate(-35 28 52)" />
+            {/* Arms holding a flower */}
+            <ellipse cx="32" cy="62" rx="7" ry="11" fill="#9E5D3B" transform="rotate(-30 32 62)" />
+            <ellipse cx="68" cy="62" rx="7" ry="11" fill="#9E5D3B" transform="rotate(30 68 62)" />
+
+            {/* Flower in hands */}
+            <text x="41" y="69" fontSize="20">🌸</text>
 
             {/* Running Feet */}
-            <ellipse cx="32" cy="69" rx="6" ry="4" fill="#D494A8" />
-            <ellipse cx="48" cy="67" rx="6" ry="4" fill="#D494A8" />
+            <ellipse cx="36" cy="86" rx="8" ry="6" fill="#8C4E2D" />
+            <ellipse cx="64" cy="85" rx="8" ry="6" fill="#8C4E2D" />
+          </svg>
+        </motion.div>
+
+        {/* Speed Wind Trails between them */}
+        <div className="flex flex-col gap-1.5 pb-6 opacity-60">
+          <motion.div
+            className="w-6 h-1.5 bg-rose-400 rounded-full"
+            animate={{ scaleX: [0.4, 1.3, 0.4] }}
+            transition={{ duration: 0.35, repeat: Infinity }}
+          />
+          <motion.div
+            className="w-9 h-1.5 bg-pink-400 rounded-full -ml-2"
+            animate={{ scaleX: [1.2, 0.4, 1.2] }}
+            transition={{ duration: 0.35, repeat: Infinity, delay: 0.1 }}
+          />
+        </div>
+
+        {/* BEAR 2 (Pastel Pink Teddy with bow playfully chasing behind) */}
+        <motion.div
+          className="relative flex flex-col items-center"
+          animate={{
+            y: [0, -15, 0],
+            rotate: [-6, 4, -6],
+          }}
+          transition={{
+            duration: 0.35,
+            repeat: Infinity,
+            ease: 'easeInOut',
+            delay: 0.12,
+          }}
+        >
+          {/* Sparkles / thought above bear 2 */}
+          <motion.div
+            className="absolute -top-7 flex gap-1"
+            animate={{
+              opacity: [0, 1, 0],
+              y: [-1, -18],
+              scale: [0.8, 1.3, 0.8],
+            }}
+            transition={{
+              duration: 0.9,
+              repeat: Infinity,
+              ease: 'easeOut',
+              delay: 0.25,
+            }}
+          >
+            <span className="text-xl">✨</span>
+          </motion.div>
+
+          {/* Large Bear 2 SVG (Approx 95px - 105px) */}
+          <svg viewBox="0 0 100 100" width="95" height="95" className="drop-shadow-lg overflow-visible">
+            {/* Left Ear */}
+            <circle cx="28" cy="24" r="13" fill="#E89EB5" />
+            <circle cx="28" cy="24" r="7" fill="#FFE4EC" />
+
+            {/* Right Ear */}
+            <circle cx="72" cy="24" r="13" fill="#E89EB5" />
+            <circle cx="72" cy="24" r="7" fill="#FFE4EC" />
+
+            {/* Cute satin bow on left ear */}
+            <path d="M 23 20 Q 17 14 22 10 Q 26 16 23 20" fill="#FF2A6D" />
+            <path d="M 26 20 Q 32 14 27 10 Q 23 16 26 20" fill="#FF2A6D" />
+            <circle cx="24.5" cy="15" r="3" fill="#D81B60" />
+
+            {/* Head */}
+            <ellipse cx="50" cy="40" rx="28" ry="23" fill="#F7B2C7" />
+
+            {/* Blush cheeks */}
+            <circle cx="34" cy="46" r="6" fill="#FF4081" opacity="0.65" />
+            <circle cx="66" cy="46" r="6" fill="#FF4081" opacity="0.65" />
+
+            {/* Happy eyes */}
+            <ellipse cx="38" cy="38" rx="3.5" ry="5" fill="#3D1C2E" />
+            <ellipse cx="62" cy="38" rx="3.5" ry="5" fill="#3D1C2E" />
+            <circle cx="39.5" cy="36" r="1.5" fill="#FFFFFF" />
+            <circle cx="63.5" cy="36" r="1.5" fill="#FFFFFF" />
+
+            {/* Muzzle */}
+            <ellipse cx="50" cy="49" rx="12" ry="9" fill="#FFF0F5" />
+            <ellipse cx="50" cy="45" rx="4.5" ry="3" fill="#880E4F" />
+            <path d="M 47 50 Q 50 54 53 50" stroke="#880E4F" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+
+            {/* Body */}
+            <ellipse cx="50" cy="70" rx="21" ry="18" fill="#F7B2C7" />
+            <ellipse cx="50" cy="70" rx="12" ry="11" fill="#FFF0F5" />
+
+            {/* Outstretched chasing arms */}
+            <ellipse cx="65" cy="58" rx="9" ry="6" fill="#E89EB5" transform="rotate(-15 65 58)" />
+            <ellipse cx="33" cy="64" rx="6" ry="10" fill="#E89EB5" transform="rotate(-35 33 64)" />
+
+            {/* Running Feet */}
+            <ellipse cx="38" cy="86" rx="8" ry="6" fill="#D4829E" />
+            <ellipse cx="62" cy="84" rx="8" ry="6" fill="#D4829E" />
           </svg>
         </motion.div>
       </motion.div>
